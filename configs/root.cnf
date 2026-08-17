@@ -1,0 +1,54 @@
+###############################################
+# Root CA — OpenSSL Configuration
+#
+# Used by: openssl req (to generate the root cert)
+#          openssl ca  (to sign the intermediate's CSR)
+###############################################
+
+# --- Entry point for `openssl ca` ---
+[ ca ]
+default_ca = CA_default
+
+# --- CA operational settings ---
+[ CA_default ]
+dir               = ./root                  # Base directory for root CA files
+certs             = $dir                    # Where issued certs are stored
+new_certs_dir     = $dir/newcerts           # Copy of each signed cert, named by serial
+database          = $dir/index.txt          # Flat-file DB tracking all issued/revoked certs
+serial            = $dir/serial             # File containing the next serial number (hex)
+private_key       = $dir/root.key           # The root CA's private key
+certificate       = $dir/root.crt           # The root CA's own certificate
+default_md        = sha256                  # Hash algorithm for signatures (sha256WithRSAEncryption)
+default_days      = 3650                    # Default validity if -days isn't specified (~10 years)
+policy            = policy_strict           # Which policy section to enforce on CSR subjects
+default_crl_days  = 30                      # CRL validity period
+
+# --- Subject field policy for CSRs signed by this CA ---
+# "match"    = field must exist AND be identical to the CA's own value
+# "supplied" = field must exist but can be any value
+# "optional" = field may be omitted
+[ policy_strict ]
+countryName             = match             # Must be CH (same as root)
+organizationName        = match             # Must be PKI Lab (same as root)
+commonName              = supplied          # Required, but can be anything
+
+# --- Settings for `openssl req` (generating keys/CSRs/self-signed certs) ---
+[ req ]
+default_bits       = 4096                   # RSA key size
+default_md         = sha256                 # Hash for the CSR's self-signature
+distinguished_name = req_distinguished_name # Section with subject field values
+x509_extensions    = v3_ca                  # Extensions to apply when using -x509 (self-sign)
+prompt             = no                     # Don't prompt interactively; use config values
+
+# --- Subject fields for the root CA certificate ---
+[ req_distinguished_name ]
+C  = CH                                     # Country (ISO 3166-1 alpha-2)
+O  = PKI Lab                                # Organization
+CN = PKI Lab Root CA                        # Common Name (human-readable CA identifier)
+
+# --- Extensions for the root CA certificate ---
+[ v3_ca ]
+basicConstraints       = critical, CA:TRUE              # This cert IS a CA; "critical" = must be enforced
+keyUsage               = critical, keyCertSign, cRLSign  # Can only sign certs and CRLs — nothing else
+subjectKeyIdentifier   = hash                            # SHA-1 hash of this cert's public key (for chain building)
+authorityKeyIdentifier = keyid:always, issuer            # Identifies the signing key (self-referencing for root)

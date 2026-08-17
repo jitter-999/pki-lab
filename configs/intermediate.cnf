@@ -1,0 +1,80 @@
+###############################################
+# Intermediate CA — OpenSSL Configuration
+#
+# Used by: openssl req (to generate the intermediate's CSR)
+#          openssl ca  (to sign leaf certificate CSRs)
+#
+# Also referenced by the root CA via -extfile
+# when signing the intermediate's certificate.
+###############################################
+
+# --- Entry point for `openssl ca` ---
+[ ca ]
+default_ca = CA_default
+
+# --- CA operational settings ---
+[ CA_default ]
+dir               = ./intermediate           # Base directory for intermediate CA files
+certs             = $dir                     # Where issued certs are stored
+new_certs_dir     = $dir/newcerts            # Audit copies of signed certs
+database          = $dir/index.txt           # Cert tracking database
+serial            = $dir/serial              # Next serial number
+private_key       = $dir/intermediate.key    # The intermediate CA's private key
+certificate       = $dir/intermediate.crt    # The intermediate CA's own certificate
+default_md        = sha256                   # Signature hash algorithm
+default_days      = 365                      # Default leaf cert validity (~1 year)
+policy            = policy_loose             # Looser policy than root — leaves can vary
+default_crl_days  = 30                       # CRL validity period
+
+# --- Looser policy for leaf CSRs ---
+# The intermediate signs certs for various services, so we don't
+# require country/org to match the CA's own values.
+[ policy_loose ]
+countryName             = optional
+organizationName        = optional
+commonName              = supplied           # CN is still required
+
+# --- Settings for generating the intermediate's own CSR ---
+[ req ]
+default_bits       = 4096
+default_md         = sha256
+distinguished_name = req_distinguished_name
+prompt             = no
+
+[ req_distinguished_name ]
+C  = CH
+O  = PKI Lab
+CN = PKI Lab Intermediate CA
+
+###############################################
+# Extension sections
+# These define the X.509 v3 extensions applied
+# to certificates signed by this CA (or to this
+# CA's own certificate when the root signs it).
+###############################################
+
+# --- Extensions for the intermediate CA certificate itself ---
+# Applied by the root CA via: openssl ca -extensions v3_intermediate_ca -extfile configs/intermediate.cnf
+[ v3_intermediate_ca ]
+basicConstraints       = critical, CA:TRUE, pathlen:0    # CA:TRUE = can sign certs; pathlen:0 = cannot sign further CAs
+keyUsage               = critical, keyCertSign, cRLSign  # Only cert/CRL signing — no TLS, no encryption
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always, issuer
+
+# --- Extensions for leaf (server) certificates ---
+# Applied when this intermediate signs a CSR: openssl ca -extensions server_cert
+[ server_cert ]
+basicConstraints       = critical, CA:FALSE                         # NOT a CA — cannot sign other certs
+keyUsage               = critical, digitalSignature, keyEncipherment # digitalSignature: TLS handshake; keyEncipherment: RSA key exchange
+extendedKeyUsage       = serverAuth                                  # Restricted to TLS server authentication only
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always, issuer
+subjectAltName         = @alt_names                                  # The hostnames this cert is valid for
+
+# --- Subject Alternative Names ---
+# Modern TLS uses SANs (not CN) for hostname validation.
+# Wildcards match one level only: *.pkilab.local matches
+# foo.pkilab.local but NOT sub.foo.pkilab.local.
+[ alt_names ]
+DNS.1 = test.pkilab.local
+DNS.2 = *.pkilab.local
