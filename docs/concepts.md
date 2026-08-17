@@ -71,12 +71,10 @@ Certificates can be revoked before they expire. Two mechanisms:
 
 ## Real-World PKI at Scale
 
-At companies like SIX Group (Swiss financial infrastructure), certificate management involves thousands of certificates across internal services, external-facing APIs, interbank mTLS connections, and SWIFT messaging infrastructure. This is managed through:
-
 - **Internal CAs** — private CA hierarchy for internal services, with root keys in HSMs
 - **CLM platforms** — automated discovery, issuance, renewal, and revocation (Venafi, Keyfactor, etc.)
 - **Short-lived certificates** — workload certificates valid for hours, automatically rotated
 - **Key ceremonies** — formal, audited procedures for root CA operations, with M-of-N quorum controls
 - **Certificate Transparency** — monitoring CT logs to detect unauthorized issuance
 
-The principles are the same as in this lab — the difference is automation, scale, and the consequences of getting it wrong.
+
